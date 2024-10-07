@@ -24,7 +24,6 @@ export class AuthService {
                 name: `${lastName} ${firstName}`,
                 google_uid: googleId,
                 profilePhoto: picture,
-                // Add any additional fields required by your User entity
             };
             existingUser = await this.createUser(userDto);
         }
@@ -36,11 +35,8 @@ export class AuthService {
         const payload: JwtPayload = { google_id: user.google_uid, google_mail: user.google_mail };
 
         const accessToken = this.jwtService.sign(payload, { expiresIn: '1d' });
-        const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
-        await this.saveRefreshToken(user.google_mail, refreshToken);
-
-        return { accessToken: accessToken, refreshToken: refreshToken };
+        return { accessToken: accessToken };
     }
 
     async refreshAccessToken(refreshToken: string) {
@@ -66,12 +62,5 @@ export class AuthService {
     async createUser(userDto: User): Promise<User> {
         const newUser = await new userSchema(userDto).save();
         return newUser;
-    }
-
-    async saveRefreshToken(google_mail: String, refreshToken: string) {
-        const user = await userSchema.findOne({ google_mail: google_mail });
-        // console.log(refreshToken);
-        user.refreshToken = `${refreshToken}`;
-        await user.save();
     }
 }

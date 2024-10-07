@@ -22,38 +22,7 @@ export class AuthController {
         const user = req.user;
         const tokens = await this.authService.handleGoogleLogin(user);
 
-        response.cookie('refreshToken', tokens.refreshToken, {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
-
         return { accessToken: tokens.accessToken };
-    }
-
-    @Get('refresh')
-    @HttpCode(HttpStatus.OK)
-    async refresh(
-        @Req() request: Request,
-        @Res({ passthrough: true }) response: Response,
-    ) {
-        const refreshToken = request.cookies['refreshToken'];
-
-        if (!refreshToken) {
-            throw new UnauthorizedException('Refresh token not found');
-        }
-
-        const newTokens = await this.authService.refreshAccessToken(refreshToken);
-
-        response.cookie('refreshToken', newTokens.refreshToken, {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
-
-        return { accessToken: newTokens.accessToken };
     }
 
     @Get('logout')
