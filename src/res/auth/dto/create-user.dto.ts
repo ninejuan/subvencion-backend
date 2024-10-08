@@ -8,6 +8,12 @@ export class CreateAuthDto {
     google_mail!: string;
 
     @ApiProperty({
+        description: "유저의 Google UID입니다.",
+        example: "1012839869"
+    })
+    google_uid!: string;
+
+    @ApiProperty({
         description: "유저의 닉네임입니다. 기본적으로 Google display_name 속성이 설정됩니다.",
         example: "주안 이"
     })

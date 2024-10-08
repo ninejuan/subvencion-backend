@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import User from 'src/interface/user.interface';
 import userSchema from 'src/models/user.schema';
 import { JwtPayload } from 'src/interface/jwt-payload.interface';
+import { CreateAuthDto } from './dto/create-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -19,7 +20,7 @@ export class AuthService {
         let existingUser: User = await this.findUserByEmail(email);
         if (!existingUser) {
             console.log('usr not esx')
-            const userDto: User = {
+            const userDto: CreateAuthDto = {
                 google_mail: email,
                 name: `${lastName} ${firstName}`,
                 google_uid: googleId,
@@ -59,7 +60,7 @@ export class AuthService {
         return user;
     }
 
-    async createUser(userDto: User): Promise<User> {
+    async createUser(userDto: CreateAuthDto): Promise<User> {
         const newUser = await new userSchema(userDto).save();
         return newUser;
     }
