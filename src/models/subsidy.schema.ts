@@ -19,6 +19,9 @@ const subsidySchema = new mongo.Schema({
   administrativeRules: String,
   localRegulations: String,
   law: String,
+  supportCondition: Array<String>,
+  vectorEmbedding: Array<Number>,
+  keyword: Array<String>
 });
 
 export default mongo.model("subsidy", subsidySchema);

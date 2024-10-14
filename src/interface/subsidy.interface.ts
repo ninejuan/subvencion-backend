@@ -17,4 +17,6 @@ export interface Subsidy {
   administrativeRules: string;
   localRegulations: string;
   law: string;
+  supportCondition: Array<String>;
+  vectorEmbedding: Array<number>;
 }
