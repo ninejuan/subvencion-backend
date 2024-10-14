@@ -19,4 +19,6 @@ export interface Subsidy {
   law: string;
   supportCondition: Array<String>;
   vectorEmbedding: Array<number>;
+  keyword: Array<string>;
+  summary: String;
 }

@@ -21,7 +21,8 @@ const subsidySchema = new mongo.Schema({
   law: String,
   supportCondition: Array<String>,
   vectorEmbedding: Array<Number>,
-  keyword: Array<String>
+  keywords: Array<String>,
+  summary: String,
 });
 
 export default mongo.model("subsidy", subsidySchema);
