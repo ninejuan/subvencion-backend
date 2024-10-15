@@ -320,4 +320,8 @@ export class SubsidyService {
     const subsidyData = await subsidySchema.findOne({ serviceId: serviceId });
     return subsidyData;
   }
+
+  async getAllSubsidydata(page: number, limit: number) {
+    
+  }
 }
