@@ -4116,6 +4116,15 @@ mongodb@6.9.0:
     bson "^6.7.0"
     mongodb-connection-string-url "^3.0.0"
 
+mongodb@^6.10.0:
+  version "6.10.0"
+  resolved "https://registry.yarnpkg.com/mongodb/-/mongodb-6.10.0.tgz#20a9f1cf3c6829e75fc39e6d8c1c19f164209c2e"
+  integrity sha512-gP9vduuYWb9ZkDM546M+MP2qKVk5ZG2wPF63OvSRuUbqCR+11ZCAE1mOfllhlAG0wcoJY5yDL/rV3OmYEwXIzg==
+  dependencies:
+    "@mongodb-js/saslprep" "^1.1.5"
+    bson "^6.7.0"
+    mongodb-connection-string-url "^3.0.0"
+
 mongoose@^8.7.0:
   version "8.7.0"
   resolved "https://registry.yarnpkg.com/mongoose/-/mongoose-8.7.0.tgz#0f5377a4c3099702a5a00f5dccde2a092ca1c3b0"

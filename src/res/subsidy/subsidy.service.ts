@@ -10,8 +10,8 @@ config();
 const { GOV24_API_KEY, OPENAI_API_KEY } = process.env;
 
 @Injectable()
-export class SubsidyService {
-  private readonly logger = new Logger(SubsidyService.name);
+export class OldSubsidyService {
+  private readonly logger = new Logger(OldSubsidyService.name);
 
   constructor(
     @InjectModel(subsidySchema.name)
