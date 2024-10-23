@@ -49,7 +49,7 @@ export class SubsidyService {
   async processAllData() {
     try {
       // 1. 기존 데이터 전체 삭제
-      // await this.clearAllData();
+      await this.clearAllData();
 
       // 2. 기본 정보 및 벡터 저장
       await this.fetchAndStoreBasicInfo();
@@ -58,7 +58,7 @@ export class SubsidyService {
       await this.updateAllSupportConditions();
 
       // 4. 요약 정보 업데이트
-      await this.updateAllSummaries();
+      // await this.updateAllSummaries();
 
       console.log("All data processing completed successfully");
     } catch (error) {
@@ -80,8 +80,9 @@ export class SubsidyService {
   private async fetchAndStoreBasicInfo() {
     try {
       const firstPageData = await this.fetchSubsidyPage(1, 1);
-      const totalCount = firstPageData.totalCount;
-      const perPage = 500;
+      // const totalCount = firstPageData.totalCount;
+      const totalCount = 100;
+      const perPage = 100; // to 500
 
       for (let page = 1; page <= Math.ceil(totalCount / perPage); page++) {
         const { data: subsidies } = await this.fetchSubsidyPage(page, perPage);
@@ -105,27 +106,38 @@ export class SubsidyService {
 
   private async updateAllSupportConditions() {
     try {
-      const subsidies = await SubsidyModel.find({});
+      // First get the total count from initial request
+      const firstPageResponse = await this.fetchSupportCondition("", 1, 1);
+      // const totalCount = firstPageResponse.totalCount;
+      const totalCount = 100;
+      const perPage = 100; // return to 500
+      const totalPages = Math.ceil(totalCount / perPage);
 
-      for (const subsidy of subsidies) {
-        try {
-          const supportCondition = await this.fetchSupportConditionWithRetry(
-            subsidy.serviceId
-          );
-          if (supportCondition) {
-            const supportConditionArray =
-              this.extractSupportConditions(supportCondition);
-            subsidy.supportCondition = supportConditionArray;
-            await subsidy.save();
+      // Fetch support conditions in batches
+      for (let page = 1; page <= totalPages; page++) {
+        const response = await this.fetchSupportCondition("", page, perPage);
+        const conditions = response.data;
+
+        // Update each subsidy's support conditions
+        for (const condition of conditions) {
+          const serviceId = condition.서비스ID;
+          if (serviceId) {
+            const subsidy = await SubsidyModel.findOne({ serviceId });
+            if (subsidy) {
+              console.log(
+                `Updating support condition for service ID: ${serviceId}`
+              );
+              const supportConditionArray =
+                this.extractSupportConditions(condition);
+              subsidy.supportCondition = supportConditionArray;
+              await subsidy.save();
+            }
           }
-          await this.delay(this.DELAY_MS);
-        } catch (error) {
-          console.error(
-            `Error updating support conditions for ${subsidy.serviceId}:`,
-            error
-          );
-          continue;
         }
+
+        // Apply delay between batch requests
+        await this.delay(this.DELAY_MS);
+        console.log(`Processed page ${page} of ${totalPages}`);
       }
     } catch (error) {
       console.error("Error in updateAllSupportConditions:", error);
@@ -177,57 +189,40 @@ export class SubsidyService {
     }
   }
 
-  private async fetchSupportConditionWithRetry(
-    serviceId: string,
-    retryCount = 0
-  ): Promise<any> {
+  private async fetchSupportCondition(
+    serviceId: string = "",
+    page: number = 1,
+    perPage: number = 1
+  ) {
     try {
-      return await this.fetchSupportCondition(serviceId);
-    } catch (error: any) {
-      if (retryCount < this.MAX_RETRIES && error.response?.data?.code === -10) {
-        console.log(
-          `Retrying fetchSupportCondition for serviceId ${serviceId} (attempt ${
-            retryCount + 1
-          })`
-        );
-        await this.delay(this.DELAY_MS * (retryCount + 1));
-        return this.fetchSupportConditionWithRetry(serviceId, retryCount + 1);
-      }
-      throw error;
-    }
-  }
+      const params: any = {
+        page,
+        perPage,
+        serviceKey: GOV24_API_KEY,
+      };
 
-  private async fetchSupportCondition(serviceId: string) {
-    try {
+      // Only add service ID filter if specified
+      if (serviceId) {
+        params["cond[서비스ID::EQ]"] = serviceId;
+      }
+
       const response = await axios.get(
         "https://api.odcloud.kr/api/gov24/v3/supportConditions",
         {
-          params: {
-            "cond[서비스ID::EQ]": serviceId,
-            page: 1,
-            perPage: 1,
-            serviceKey: GOV24_API_KEY,
-          },
+          params,
           headers: { Authorization: GOV24_API_KEY },
         }
       );
 
       if (!response.data?.data || !Array.isArray(response.data.data)) {
-        console.warn(`Invalid response format for serviceId ${serviceId}`);
+        console.warn(`Invalid response format for page ${page}`);
         return null;
       }
 
-      if (response.data.data.length === 0) {
-        console.warn(
-          `No support condition data found for serviceId ${serviceId}`
-        );
-        return null;
-      }
-
-      return response.data.data[0];
+      return response.data;
     } catch (error) {
       console.error(
-        `Error fetching support condition for serviceId ${serviceId}:`,
+        `Error fetching support conditions for page ${page}:`,
         error
       );
       throw error;
@@ -298,11 +293,15 @@ export class SubsidyService {
 
   private extractSupportConditions(supportCondition: any): string[] {
     if (!supportCondition) return [];
-
-    return Object.keys(supportCondition)
+    let result: string[] = [];
+    Object.keys(supportCondition)
       .filter((key) => key.startsWith("JA"))
-      .map((key) => supportCondition[key])
+      .map((key) => {
+        console.log(`${key} is appended`);
+        result.push(key);
+      })
       .filter((condition) => condition != null);
+    return result;
   }
 
   private async summarizeContent(content: string): Promise<string> {
@@ -322,19 +321,10 @@ export class SubsidyService {
   }
 
   private async extractKeywords(content: string): Promise<string[]> {
-    try {
-      const response = await axios.post(
-        "http://localhost:5000/generate",
-        {
-          prompt: `Extract 15 key keywords from the following content: ${content}`,
-        },
-        { headers: { "Content-Type": "application/json" } }
-      );
-      return response.data.split(",").map((keyword: string) => keyword.trim());
-    } catch (error) {
-      console.error("Error extracting keywords:", error);
-      return [];
-    }
+    /* 
+      content 기반으로 Mongo RAG 해서 Keyword 추출하기
+    */
+    return [""];
   }
 
   private delay(ms: number): Promise<void> {
