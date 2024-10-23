@@ -297,8 +297,11 @@ export class SubsidyService {
     Object.keys(supportCondition)
       .filter((key) => key.startsWith("JA"))
       .map((key) => {
-        console.log(`${key} is appended`);
-        result.push(key);
+        if (supportCondition[key] == null || supportCondition[key] == "N") {
+        } else {
+          console.log(`${key} is appended`);
+          result.push(key);
+        }
       })
       .filter((condition) => condition != null);
     return result;
