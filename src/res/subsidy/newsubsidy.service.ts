@@ -1,4 +1,4 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, W } from "mongodb";
 import mongoose from "mongoose";
 import axios from "axios";
 import SubsidyModel from "../../models/subsidy.schema";
@@ -19,7 +19,14 @@ export class SubsidyService {
   private readonly BATCH_SIZE = 10;
 
   constructor() {
-    this.mongoClient = new MongoClient(`${MONGODB_URI}`);
+    const options = {
+      retryWrites: true,
+      w: "majority" as W,
+      ssl: true,
+      authSource: "admin",
+      directConnection: false,
+    };
+    this.mongoClient = new MongoClient(`${MONGODB_URI}`, options);
     this.initialize();
   }
   private async initialize() {
@@ -42,7 +49,7 @@ export class SubsidyService {
   async processAllData() {
     try {
       // 1. 기존 데이터 전체 삭제
-      await this.clearAllData();
+      // await this.clearAllData();
 
       // 2. 기본 정보 및 벡터 저장
       await this.fetchAndStoreBasicInfo();
@@ -335,8 +342,8 @@ export class SubsidyService {
   }
 
   private async createVectorSearchIndex() {
-    const db = this.mongoClient.db(DATABASE_NAME);
-    const collection = db.collection(COLLECTION_NAME || "subsidies");
+    const db = this.mongoClient.db("test" || DATABASE_NAME);
+    const collection = db.collection("subsidies" || COLLECTION_NAME);
     try {
       const indexes = await collection.listIndexes().toArray();
       const hasVectorIndex = indexes.some(
@@ -345,15 +352,19 @@ export class SubsidyService {
 
       if (!hasVectorIndex) {
         // MongoDB Atlas Search의 벡터 검색 인덱스 설정
-        await collection.createIndex(
-          {
-            vectorEmbedding: 1, // 오름차순 또는 내림차순 (일반 인덱스의 방향 지정)
-          },
-          {
-            name: "subsidy_vector_index",
-          }
-        );
-        console.log("Vector search index created successfully.");
+        // await collection.createIndex(
+        //   {
+        //     vectorEmbedding: "vector",
+        //   },
+        //   {
+        //     name: "subsidy_vector_index",
+        //     weights: {
+        //       vectorEmbedding: 1,
+        //     },
+        //   }
+        // );
+        console.log('please create vector embedding atlas search index in mongodb portal')
+        // console.log("Vector search index created successfully.");
       } else {
         console.log("Vector search index already exists");
       }
@@ -373,16 +384,39 @@ export class SubsidyService {
       const queryVector = await this.getEmbedding(query);
       const skip = (page - 1) * limit;
 
-      const db = this.mongoClient.db(DATABASE_NAME);
-      const collection = db.collection<Subsidy>(COLLECTION_NAME || "subsidies");
+      const db = this.mongoClient.db("test" || DATABASE_NAME);
+      const collection = db.collection<Subsidy>("subsidies" || COLLECTION_NAME || "subsidies");
 
+      // const pipeline = [
+      //   {
+      //     $vectorSearch: {
+      //       index: "subsidy_vector_index",
+      //       queryVector: queryVector,
+      //       path: "vectorEmbedding",
+      //       exact: true,
+
+      //       // numCandidates: 1000,
+      //       limit: 5,
+      //     },
+      //   },
+      //   {
+      //     $project: {
+      //       _id: 0,
+      //       text: 1,
+      //       score: {
+      //         $meta: "vectorSearchScore",
+      //       },
+      //     },
+      //   },
+      // ];
       const pipeline = [
         {
           $vectorSearch: {
             queryVector: queryVector,
             path: "vectorEmbedding",
-            numCandidates: 100,
-            limit: 100,
+            numCandidates: 10,
+            exact: false,
+            limit: 10,
             index: "subsidy_vector_index",
           },
         },
@@ -398,11 +432,16 @@ export class SubsidyService {
             score: { $meta: "vectorSearchScore" },
           },
         },
-        { $skip: skip },
-        { $limit: limit },
+        // { $skip: skip },
+        // { $limit: limit },
       ];
-
+      // console.log(await collection.aggregate<Subsidy>(pipeline));
       const results = await collection.aggregate<Subsidy>(pipeline).toArray();
+      const res = await collection.aggregate<Subsidy>(pipeline);
+        // print results
+        for await (const doc of res) {
+            console.dir(JSON.stringify(doc));
+        }
       const totalCount = await collection.countDocuments();
       const totalPages = Math.ceil(totalCount / limit);
 
