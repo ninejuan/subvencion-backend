@@ -342,8 +342,8 @@ export class SubsidyService {
   }
 
   private async createVectorSearchIndex() {
-    const db = this.mongoClient.db("test" || DATABASE_NAME);
-    const collection = db.collection("subsidies" || COLLECTION_NAME);
+    const db = this.mongoClient.db(DATABASE_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     try {
       const indexes = await collection.listIndexes().toArray();
       const hasVectorIndex = indexes.some(
@@ -351,20 +351,25 @@ export class SubsidyService {
       );
 
       if (!hasVectorIndex) {
-        // MongoDB Atlas Search의 벡터 검색 인덱스 설정
-        // await collection.createIndex(
-        //   {
-        //     vectorEmbedding: "vector",
-        //   },
-        //   {
-        //     name: "subsidy_vector_index",
-        //     weights: {
-        //       vectorEmbedding: 1,
-        //     },
-        //   }
-        // );
-        console.log('please create vector embedding atlas search index in mongodb portal')
-        // console.log("Vector search index created successfully.");
+        /*
+          vector atlas vector search index가 존재하지 않을 때 아래 값을 넣어주세요.
+          {
+  "mappings": {
+    "dynamic": true,
+    "fields": {
+      "vectorEmbedding": {
+        "type": "knnVector",
+        "dimensions": 1536,  // Ada 모델의 벡터 차원 수
+        "similarity": "cosine"
+      }
+    }
+  }
+}
+
+        */
+        console.log(
+          "please create vector embedding atlas search index in mongodb portal"
+        );
       } else {
         console.log("Vector search index already exists");
       }
@@ -377,46 +382,22 @@ export class SubsidyService {
   // 검색 관련 메서드들...
   async searchSubsidiesByVector(
     query: string,
-    page: number = 1,
-    limit: number = 10
+    limit: number = 30
   ): Promise<PaginationResult<Subsidy>> {
     try {
       const queryVector = await this.getEmbedding(query);
-      const skip = (page - 1) * limit;
 
-      const db = this.mongoClient.db("test" || DATABASE_NAME);
-      const collection = db.collection<Subsidy>("subsidies" || COLLECTION_NAME || "subsidies");
+      const db = this.mongoClient.db(DATABASE_NAME);
+      const collection = db.collection<Subsidy>(COLLECTION_NAME);
 
-      // const pipeline = [
-      //   {
-      //     $vectorSearch: {
-      //       index: "subsidy_vector_index",
-      //       queryVector: queryVector,
-      //       path: "vectorEmbedding",
-      //       exact: true,
-
-      //       // numCandidates: 1000,
-      //       limit: 5,
-      //     },
-      //   },
-      //   {
-      //     $project: {
-      //       _id: 0,
-      //       text: 1,
-      //       score: {
-      //         $meta: "vectorSearchScore",
-      //       },
-      //     },
-      //   },
-      // ];
       const pipeline = [
         {
           $vectorSearch: {
             queryVector: queryVector,
             path: "vectorEmbedding",
-            numCandidates: 10,
+            numCandidates: 100,
             exact: false,
-            limit: 10,
+            limit: 30,
             index: "subsidy_vector_index",
           },
         },
@@ -432,27 +413,22 @@ export class SubsidyService {
             score: { $meta: "vectorSearchScore" },
           },
         },
-        // { $skip: skip },
-        // { $limit: limit },
+        {
+          $limit: 30,
+        },
       ];
-      // console.log(await collection.aggregate<Subsidy>(pipeline));
       const results = await collection.aggregate<Subsidy>(pipeline).toArray();
-      const res = await collection.aggregate<Subsidy>(pipeline);
-        // print results
-        for await (const doc of res) {
-            console.dir(JSON.stringify(doc));
-        }
       const totalCount = await collection.countDocuments();
       const totalPages = Math.ceil(totalCount / limit);
 
       return {
         results,
         pagination: {
-          currentPage: page,
+          currentPage: 1,
           totalPages,
           totalCount,
-          hasNextPage: page < totalPages,
-          hasPreviousPage: page > 1,
+          hasNextPage: 1 < totalPages,
+          hasPreviousPage: 1 > 1,
         },
       };
     } catch (error) {

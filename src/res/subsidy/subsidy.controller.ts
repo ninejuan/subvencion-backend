@@ -40,9 +40,7 @@ export class SubsidyController {
   // 3. 벡터 + 키워드 검색 (하나의 엔드포인트로 통합)
   @Get("search")
   async searchSubsidies(
-    @Query("query") query: string,
-    @Query("page") page: number = 1,
-    @Query("limit") limit: number = 10
+    @Query("query") query: string
   ) {
     if (!query) {
       return { message: "Query parameter is required" };
@@ -51,9 +49,7 @@ export class SubsidyController {
     try {
       let result;
         result = await this.subsidyService.searchSubsidiesByVector(
-          query,
-          page,
-          limit
+          query
         );
       return result;
     } catch (error) {
