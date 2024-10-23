@@ -83,8 +83,8 @@ export class SubsidyService {
     try {
       const firstPageData = await this.fetchSubsidyPage(1, 1);
       // const totalCount = firstPageData.totalCount;
-      const totalCount = 100;
-      const perPage = 100; // to 500
+      const totalCount = 50;
+      const perPage = 50; // to 500
 
       for (let page = 1; page <= Math.ceil(totalCount / perPage); page++) {
         const { data: subsidies } = await this.fetchSubsidyPage(page, perPage);
@@ -111,8 +111,8 @@ export class SubsidyService {
       // First get the total count from initial request
       const firstPageResponse = await this.fetchSupportCondition("", 1, 1);
       // const totalCount = firstPageResponse.totalCount;
-      const totalCount = 100;
-      const perPage = 100; // return to 500
+      const totalCount = 50;
+      const perPage = 50; // return to 500
       const totalPages = Math.ceil(totalCount / perPage);
 
       // Fetch support conditions in batches
@@ -153,10 +153,10 @@ export class SubsidyService {
 
       for (const subsidy of subsidies) {
         try {
-          // const summary = await this.summarizeContent(subsidy.supportDetails);
+          const summary = await this.summarizeContent(subsidy);
           const keywords = await this.extractKeywords(subsidy);
 
-          // subsidy.summary = summary;
+          subsidy.summary = summary;
           subsidy.keywords = keywords;
           await subsidy.save();
           console.log(
@@ -311,16 +311,28 @@ export class SubsidyService {
     return result;
   }
 
-  private async summarizeContent(content: string): Promise<string> {
+  private async summarizeContent(subsidy: any): Promise<string> {
     try {
+      const requestBody = {
+        serviceId: `${subsidy.serviceId}`,
+        content: `${subsidy.supportDetails}` || "",
+      };
+
       const response = await axios.post(
-        "http://localhost:5000/generate",
+        `${KEYWORD_BACKEND_URL}/summarize_welfare/`, // FastAPI 백엔드의 엔드포인트
+        requestBody,
         {
-          prompt: `Summarize the following content in 30 characters or less: ${content}`,
-        },
-        { headers: { "Content-Type": "application/json" } }
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
-      return response.data.trim();
+
+      const result = response.data; // FastAPI 응답에서 데이터를 추출
+      console.log(
+        `get summarize serviceId ${subsidy.serviceId} smarz ${result}`
+      );
+      return result || "";
     } catch (error) {
       console.error("Error summarizing content:", error);
       return "";
@@ -329,7 +341,7 @@ export class SubsidyService {
 
   private async extractKeywords(subsidy: any): Promise<string[]> {
     try {
-      console.log(`kw be url : ${KEYWORD_BACKEND_URL}`);
+      // console.log(`kw be url : ${KEYWORD_BACKEND_URL}`);
 
       // FastAPI에 전달할 데이터 구조
       const requestBody = {
