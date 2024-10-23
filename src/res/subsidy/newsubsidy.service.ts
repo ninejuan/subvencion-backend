@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import axios from "axios";
 import SubsidyModel from "../../models/subsidy.schema";
 import { Subsidy, PaginationResult } from "./types/subsidy.type";
+import * as natural from "natural";
+import * as stopword from "stopword";
 
 const {
   MONGODB_URI,
@@ -10,12 +12,12 @@ const {
   COLLECTION_NAME,
   GOV24_API_KEY,
   OPENAI_API_KEY,
+  KEYWORD_BACKEND_URL,
 } = process.env;
 
 export class SubsidyService {
   private mongoClient: MongoClient;
   private readonly DELAY_MS = 1000;
-  private readonly MAX_RETRIES = 3;
   private readonly BATCH_SIZE = 10;
 
   constructor() {
@@ -58,7 +60,7 @@ export class SubsidyService {
       await this.updateAllSupportConditions();
 
       // 4. 요약 정보 업데이트
-      // await this.updateAllSummaries();
+      await this.updateAllSummaries();
 
       console.log("All data processing completed successfully");
     } catch (error) {
@@ -151,13 +153,15 @@ export class SubsidyService {
 
       for (const subsidy of subsidies) {
         try {
-          const summary = await this.summarizeContent(subsidy.supportDetails);
-          const keywords = await this.extractKeywords(subsidy.serviceName);
+          // const summary = await this.summarizeContent(subsidy.supportDetails);
+          const keywords = await this.extractKeywords(subsidy);
 
-          subsidy.summary = summary;
+          // subsidy.summary = summary;
           subsidy.keywords = keywords;
           await subsidy.save();
-
+          console.log(
+            `updated subsidy ${subsidy.serviceId} with keyword ${keywords}`
+          );
           await this.delay(this.DELAY_MS);
         } catch (error) {
           console.error(
@@ -323,11 +327,47 @@ export class SubsidyService {
     }
   }
 
-  private async extractKeywords(content: string): Promise<string[]> {
-    /* 
-      content 기반으로 Mongo RAG 해서 Keyword 추출하기
-    */
-    return [""];
+  private async extractKeywords(subsidy: any): Promise<string[]> {
+    try {
+      console.log(`kw be url : ${KEYWORD_BACKEND_URL}`);
+
+      // FastAPI에 전달할 데이터 구조
+      const requestBody = {
+        serviceId: subsidy.serviceId,
+        supportType: subsidy.supportType,
+        serviceName: subsidy.serviceName,
+        servicePurpose: subsidy.servicePurpose || null, // 선택적 필드를 null로 설정
+        applicationDeadline: subsidy.applicationDeadline || null,
+        targetGroup: subsidy.targetGroup || null,
+        selectionCriteria: subsidy.selectionCriteria || null,
+        supportDetails: subsidy.supportDetails || null,
+        applicationMethod: subsidy.applicationMethod || null,
+        requiredDocuments: subsidy.requiredDocuments || null,
+        receptionInstitutionName: subsidy.receptionInstitutionName || null,
+        contactInfo: subsidy.contactInfo || null,
+        responsibleInstitutionName: subsidy.responsibleInstitutionName || null,
+        supportCondition: subsidy.supportCondition || null,
+      };
+
+      const response = await axios.post(
+        `${KEYWORD_BACKEND_URL}/extract_keywords/`, // FastAPI 백엔드의 엔드포인트
+        requestBody,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const result = response.data; // FastAPI 응답에서 데이터를 추출
+      console.log(
+        `get keyword serviceId ${subsidy.serviceId} keyword ${result}`
+      );
+      return result || []; // 키워드 배열 반환
+    } catch (error) {
+      console.error("Error extracting keywords:", error);
+      return []; // 에러 발생 시 빈 배열 반환
+    }
   }
 
   private delay(ms: number): Promise<void> {
