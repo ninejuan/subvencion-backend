@@ -1,17 +1,19 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import { AppService } from './app.service';
+import { SubJwtAuthGuard } from './res/common/guards/subjwt.guard';
 
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get('main/keyword')
-  async getKeyword() {
-    return this.appService.getKeyword();
+  @UseGuards(SubJwtAuthGuard)
+  @Get('main/interested')
+  async getKeyword(@Req() req) {
+    return this.appService.getInterestedSubsidies(req.id, 6);
   }
 
   @Get('main/new')
   async getNew() {
-    return this.appService.getNew();
+    return this.appService.getNew(6);
   }
 }
