@@ -1,7 +1,9 @@
-import { Controller, Get, UseGuards, Req, Res, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, UseGuards, Req, Res, HttpCode, HttpStatus, UnauthorizedException, Post, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { GoogleGuard } from 'src/res/common/guards/google.guard';
 import { Request, Response } from 'express';
+import { JwtAuthGuard } from '../common/guards/jwt.guard';
+import { ApplyPropertyDto } from './dto/applyProperty.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -36,4 +38,10 @@ export class AuthController {
 
         return { message: 'Logged out successfully' };
     }
+
+    @Post('applyProperties')
+    @UseGuards(JwtAuthGuard)
+    async applyProperties(@Req() req, @Body() applyPropertyDto: ApplyPropertyDto) {
+        return this.authService.applyProperties(req.id, applyPropertyDto)
+    } 
 }

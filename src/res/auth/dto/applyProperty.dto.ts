@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-export class ApplyProperty {
+export class ApplyPropertyDto {
     @ApiProperty({
         description: "JACode - 복지정보 지원자격요건입니다.",
         example: "[\"복지\"]"

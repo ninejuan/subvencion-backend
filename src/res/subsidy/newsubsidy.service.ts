@@ -3,8 +3,8 @@ import mongoose from "mongoose";
 import axios from "axios";
 import SubsidyModel from "../../models/subsidy.schema";
 import { Subsidy, PaginationResult } from "./types/subsidy.type";
-import * as natural from "natural";
-import * as stopword from "stopword";
+import subsidySchema from "../../models/subsidy.schema";
+import userSchema from "src/models/user.schema";
 
 const {
   MONGODB_URI,
@@ -484,5 +484,28 @@ export class SubsidyService {
 
   async close() {
     await Promise.all([this.mongoClient.close(), mongoose.disconnect()]);
+  }
+
+  async checkEligible(userId: string, serviceId: number) {
+    const user = await userSchema.findOne({ google_uid: userId });
+    const subsidy = await subsidySchema.findOne({ serviceId: serviceId });
+    for (let eligibleCode in (user?.jacode || [])) {
+      if (eligibleCode in subsidy.supportCondition) {
+        return true;
+      } else continue;
+    }
+    return false;
+  }
+
+  async getDetailedSubsidyData(serviceId: number, userId: string) {
+    const subsidy = await subsidySchema.findOne({ serviceId: serviceId });
+    const isEligible = this.checkEligible(userId, serviceId) ? userId : false;
+    const result = subsidy
+      ? {
+          subsidy: subsidy,
+          isEligible: isEligible,
+        }
+      : false;
+    return result;
   }
 }

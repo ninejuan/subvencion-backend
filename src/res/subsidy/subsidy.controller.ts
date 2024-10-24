@@ -1,5 +1,7 @@
-import { Controller, Get, Query, Param } from "@nestjs/common";
+import { Controller, Get, Query, Param, UseGuards, Req, Res } from "@nestjs/common";
 import { SubsidyService } from "./newsubsidy.service";
+// import { Response } from "express";
+import { SubJwtAuthGuard } from "../common/guards/subjwt.guard";
 
 @Controller("subsidies")
 export class SubsidyController {
@@ -11,13 +13,16 @@ export class SubsidyController {
   }
 
   // 1. 개별 서비스 ID로 보조금 데이터 가져오기
+  @UseGuards(SubJwtAuthGuard)
   @Get("detail/:serviceId")
-  async getSubsidyByServiceId(@Param("serviceId") serviceId: Number) {
+  async getSubsidyByServiceId(@Req() req, @Res() res, @Param("serviceId") serviceId: number) {
     if (!serviceId) {
-      return { message: "Service ID parameter is required" };
+      throw res.redirect('/');
     }
-    return {};
-    // return this.subsidyService.getSubsidyById(serviceId);
+    let result = this.subsidyService.getDetailedSubsidyData(serviceId, req.id);
+    if (!result) {
+      throw res.redirect('/404');
+    } else return result; 
   }
 
   // 2. 전체 보조금 목록 가져오기 (페이지네이션)
