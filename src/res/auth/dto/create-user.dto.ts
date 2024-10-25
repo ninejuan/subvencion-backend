@@ -5,13 +5,13 @@ export class CreateAuthDto {
         description: "유저의 Google E-mail Address입니다. 가입 시 사용합니다.",
         example: "juan.lee@octive.net"
     })
-    google_mail!: string;
+    google_mail?: string;
 
     @ApiProperty({
         description: "유저의 Google UID입니다.",
         example: "1012839869"
     })
-    google_uid!: string;
+    google_uid?: string;
 
     @ApiProperty({
         description: "유저의 닉네임입니다. 기본적으로 Google display_name 속성이 설정됩니다.",

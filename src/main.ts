@@ -1,37 +1,50 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import * as session from 'express-session'
-import * as passport from 'passport'
-import { linkToDatabase } from './utils/db.util';
-import { setupSwagger } from './utils/swagger.util';
-import helmet from 'helmet';
-import { config } from 'dotenv';
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module";
+import * as session from "express-session";
+import * as passport from "passport";
+import { linkToDatabase } from "./utils/db.util";
+import { setupSwagger } from "./utils/swagger.util";
+import helmet from "helmet";
+import { config } from "dotenv";
+import { CorsOptions } from "@nestjs/common/interfaces/external/cors-options.interface";
 
-config(); const env = process.env;
+config();
+const env = process.env;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix(process.env.GLOBAL_PREFIX);
   app.enableCors({
-    origin: ['http://localhost:5173'],
+    origin: ["https://subvencion.juany.kr", "http://localhost:5173"],
     credentials: true,
-    exposedHeaders: ["Authorization"]
+    exposedHeaders: ["Authorization"],
   });
 
-  app.use(helmet({
-    contentSecurityPolicy: false
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+    })
+  );
 
-  app.use(session({
-    secret: env.SESSION_SECRET,
-    saveUninitialized: false,
-    resave: false,
-    cookie: {
-      maxAge: 60000,
-    }
-  }))
-  app.use(passport.initialize())
-  app.use(passport.session())
+  app.use(
+    session({
+      secret: env.SESSION_SECRET,
+      saveUninitialized: false,
+      resave: false,
+      cookie: {
+        maxAge: 60000,
+      },
+    })
+  );
+  const corsOptions: CorsOptions = {
+    origin: ["*","https://subvencion.juany.kr","http://localhost:5173"],
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    credentials: true,
+  };
+
+  app.enableCors(corsOptions);
+  app.use(passport.initialize());
+  app.use(passport.session());
   await linkToDatabase();
   if (env.MODE == "DEV") {
     try {
@@ -41,10 +54,13 @@ async function bootstrap() {
       console.error(e);
     }
   }
-  await app.listen(process.env.PORT || 3000).then(() => {
-    console.log(`App is running on Port ${env.PORT || 3000}`)
-  }).catch((e) => {
-    console.error(e)
-  });
+  await app
+    .listen(process.env.PORT || 3000)
+    .then(() => {
+      console.log(`App is running on Port ${env.PORT || 3000}`);
+    })
+    .catch((e) => {
+      console.error(e);
+    });
 }
 bootstrap();

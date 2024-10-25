@@ -13,18 +13,16 @@ export class AuthService {
   constructor(private jwtService: JwtService) {}
 
   async handleGoogleLogin(user: any) {
-    // console.log(user);
-    const { email, firstName, lastName, picture, googleId } = user;
-
-    let existingUser: User = await this.findUserByEmail(email);
+    console.log(user);
+    let existingUser: any = await this.findUserByEmail(user._json.email);
     if (!existingUser) {
-      console.log("usr not esx");
       const userDto: CreateAuthDto = {
-        google_mail: email,
-        name: `${lastName} ${firstName}`,
-        google_uid: googleId,
-        profilePhoto: picture,
+        google_mail: user._json.email,
+        name: `${user._json.nestjsame}`,
+        google_uid: `${user._json.id}`,
+        profilePhoto: user._json.picture,
       };
+      
       existingUser = await this.createUser(userDto);
     }
     const generatedTokens = await this.generateTokens(existingUser);
@@ -37,9 +35,9 @@ export class AuthService {
       google_mail: user.google_mail,
     };
 
-    const accessToken = this.jwtService.sign(payload, { expiresIn: "1d" });
+    const accessToken = this.jwtService.sign(payload, { expiresIn: "7d" });
 
-    return { accessToken: accessToken };
+    return { accessToken };
   }
 
   async refreshAccessToken(refreshToken: string) {
@@ -67,12 +65,12 @@ export class AuthService {
     return newUser;
   }
 
-  async applyProperties(userId: string, applyPropertyDto: ApplyPropertyDto) {
-    if (!userId) throw new UnauthorizedException();
-    const user = await userSchema.findOne({ google_uid: userId });
+  async applyProperties(userEmail: string, applyPropertyDto: ApplyPropertyDto) {
+    if (!userEmail) throw new UnauthorizedException();
+    const user = await userSchema.findOne({ google_mail: userEmail });
     user.keywords = applyPropertyDto.keyword;
     user.jacode = applyPropertyDto.jacode;
     await user.save();
-    return user.google_uid;
+    return user.google_mail;
   }
 }

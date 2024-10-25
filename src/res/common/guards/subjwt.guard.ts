@@ -24,10 +24,11 @@ export class SubJwtAuthGuard extends AuthGuard('jwt') {
     try {
       // JWT 토큰 검증 시도
       const isValid = await super.canActivate(context);
-      
+      // console.log(isValid);
       if (isValid) {
         const user = request.user;
-        request.id = user?.id || null;
+        // console.log('user', user)
+        request.id = user?.google_mail || null;
         return true;
       }
     } catch (error) {

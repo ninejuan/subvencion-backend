@@ -9,11 +9,14 @@ export class AppController {
   @UseGuards(SubJwtAuthGuard)
   @Get('main/interested')
   async getKeyword(@Req() req) {
-    return this.appService.getInterestedSubsidies(req.id, 6);
+    console.log('int cal')
+    return this.appService.getInterestedSubsidies(req.id ?? null, 6);
   }
 
+  @UseGuards(SubJwtAuthGuard)
   @Get('main/new')
-  async getNew() {
-    return this.appService.getNew(6);
+  async getNew(@Req() req) {
+    console.log('new cal')
+    return this.appService.getNew(req.id, 6);
   }
 }

@@ -24,8 +24,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         const user = request.user;
         console.log(user ?? undefined);
         return user;
-        const payload = { id: user.id };
-        request.id = user.id;
+        const payload = { id: user.google_mail };
+        request.id = user.google_mail;
 
         // return payload;
     }

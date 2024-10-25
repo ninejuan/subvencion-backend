@@ -5,6 +5,9 @@ import SubsidyModel from "../../models/subsidy.schema";
 import { Subsidy, PaginationResult } from "./types/subsidy.type";
 import subsidySchema from "../../models/subsidy.schema";
 import userSchema from "src/models/user.schema";
+import { config } from 'dotenv';
+config();
+
 
 const {
   MONGODB_URI,
@@ -13,6 +16,7 @@ const {
   GOV24_API_KEY,
   OPENAI_API_KEY,
   KEYWORD_BACKEND_URL,
+  MONGO_URI,
 } = process.env;
 
 export class SubsidyService {
@@ -28,7 +32,10 @@ export class SubsidyService {
       authSource: "admin",
       directConnection: false,
     };
-    this.mongoClient = new MongoClient(`${MONGODB_URI}`, options);
+    this.mongoClient = new MongoClient(
+      MONGO_URI,
+      options
+    );
     this.initialize();
   }
   private async initialize() {
@@ -37,10 +44,13 @@ export class SubsidyService {
       // await this.mongoClient.connect();
 
       // Mongoose 연결 (일반 CRUD 작업용)
-      await mongoose.connect(`${MONGODB_URI}/${DATABASE_NAME}`);
+      await console.log(`mongouri : ${MONGO_URI}`);
+      await mongoose.connect(
+        MONGO_URI
+      );
 
       console.log("Connections initialized");
-      await this.createVectorSearchIndex();
+      // await this.createVectorSearchIndex();
     } catch (error) {
       console.error("Error initializing connections:", error);
       throw error;
@@ -83,8 +93,8 @@ export class SubsidyService {
     try {
       const firstPageData = await this.fetchSubsidyPage(1, 1);
       // const totalCount = firstPageData.totalCount;
-      const totalCount = 50;
-      const perPage = 50; // to 500
+      const totalCount = 6000;
+      const perPage = 300; // to 500
 
       for (let page = 1; page <= Math.ceil(totalCount / perPage); page++) {
         const { data: subsidies } = await this.fetchSubsidyPage(page, perPage);
@@ -111,8 +121,8 @@ export class SubsidyService {
       // First get the total count from initial request
       const firstPageResponse = await this.fetchSupportCondition("", 1, 1);
       // const totalCount = firstPageResponse.totalCount;
-      const totalCount = 50;
-      const perPage = 50; // return to 500
+      const totalCount = 10042;
+      const perPage = 300; // return to 500
       const totalPages = Math.ceil(totalCount / perPage);
 
       // Fetch support conditions in batches
@@ -264,9 +274,9 @@ export class SubsidyService {
 
       await subsidyDoc.save();
 
-      console.log(
-        `Basic subsidy data for service ${subsidyDoc.serviceId} saved successfully.`
-      );
+      // console.log(
+      //   `Basic subsidy data for service ${subsidyDoc.serviceId} saved successfully.`
+      // );
     } catch (error) {
       console.error("Error saving basic subsidy data:", error);
       throw error;
@@ -283,7 +293,7 @@ export class SubsidyService {
         },
         {
           headers: {
-            Authorization: `Bearer ${OPENAI_API_KEY}`,
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
             "Content-Type": "application/json",
           },
         }
@@ -486,23 +496,23 @@ export class SubsidyService {
     await Promise.all([this.mongoClient.close(), mongoose.disconnect()]);
   }
 
-  async checkEligible(userId: string, serviceId: number) {
-    const user = await userSchema.findOne({ google_uid: userId });
+  async checkEligible(userEmail: string, serviceId: number) {
+    const user = await userSchema.findOne({ google_mail: userEmail });
     const subsidy = await subsidySchema.findOne({ serviceId: serviceId });
-    for (let eligibleCode in (user?.jacode || [])) {
-      if (eligibleCode in subsidy.supportCondition) {
+    for (let eligibleCode of user?.jacode || []) {
+      if (subsidy.supportCondition.includes(eligibleCode)) {
         return true;
       } else continue;
     }
     return false;
   }
 
-  async getDetailedSubsidyData(serviceId: number, userId: string) {
+  async getDetailedSubsidyData(serviceId: number, userEmail: string) {
     const subsidy = await subsidySchema.findOne({ serviceId: serviceId });
-    const isEligible = this.checkEligible(userId, serviceId) ? userId : false;
+    const isEligible = userEmail ? this.checkEligible(userEmail, serviceId) : false;
     const result = subsidy
       ? {
-          subsidy: subsidy,
+          ...subsidy,
           isEligible: isEligible,
         }
       : false;
