@@ -17,12 +17,12 @@ export class AuthService {
     let existingUser: any = await this.findUserByEmail(user._json.email);
     if (!existingUser) {
       const userDto: CreateAuthDto = {
-        google_mail: user._json.email,
-        name: `${user._json.nestjsame}`,
-        google_uid: `${user._json.id}`,
-        profilePhoto: user._json.picture,
+        google_mail: user.emails[0].value,
+        name: user.displayName,
+        google_uid: user.id,
+        profilePhoto: user.photos[0].value,
       };
-      
+
       existingUser = await this.createUser(userDto);
     }
     const generatedTokens = await this.generateTokens(existingUser);
@@ -63,6 +63,15 @@ export class AuthService {
   async createUser(userDto: CreateAuthDto): Promise<User> {
     const newUser = await new userSchema(userDto).save();
     return newUser;
+  }
+
+  async getUserData(userEmail: string) {
+    const user = await userSchema.findOne({ google_mail: userEmail });
+    return {
+      name: user.name,
+      profile: user.profilePhoto,
+      mail: user.google_mail
+    };
   }
 
   async applyProperties(userEmail: string, applyPropertyDto: ApplyPropertyDto) {

@@ -5,9 +5,10 @@ import SubsidyModel from "../../models/subsidy.schema";
 import { Subsidy, PaginationResult } from "./types/subsidy.type";
 import subsidySchema from "../../models/subsidy.schema";
 import userSchema from "src/models/user.schema";
-import { config } from 'dotenv';
+import { config } from "dotenv";
+import { NotFoundError } from "rxjs";
+import { NotFoundException } from "@nestjs/common";
 config();
-
 
 const {
   MONGODB_URI,
@@ -32,10 +33,7 @@ export class SubsidyService {
       authSource: "admin",
       directConnection: false,
     };
-    this.mongoClient = new MongoClient(
-      MONGO_URI,
-      options
-    );
+    this.mongoClient = new MongoClient(MONGO_URI, options);
     this.initialize();
   }
   private async initialize() {
@@ -45,9 +43,7 @@ export class SubsidyService {
 
       // Mongoose 연결 (일반 CRUD 작업용)
       await console.log(`mongouri : ${MONGO_URI}`);
-      await mongoose.connect(
-        MONGO_URI
-      );
+      await mongoose.connect(MONGO_URI);
 
       console.log("Connections initialized");
       // await this.createVectorSearchIndex();
@@ -437,14 +433,14 @@ export class SubsidyService {
   // 검색 관련 메서드들...
   async searchSubsidiesByVector(
     query: string,
-    limit: number = 30
-  ): Promise<PaginationResult<Subsidy>> {
+    limit: number = 30,
+    userEmail: string,
+  ) {
     try {
       const queryVector = await this.getEmbedding(query);
 
       const db = this.mongoClient.db(DATABASE_NAME);
       const collection = db.collection<Subsidy>(COLLECTION_NAME);
-
       const pipeline = [
         {
           $vectorSearch: {
@@ -452,7 +448,7 @@ export class SubsidyService {
             path: "vectorEmbedding",
             numCandidates: 100,
             exact: false,
-            limit: 30,
+            limit: 75,
             index: "subsidy_vector_index",
           },
         },
@@ -465,27 +461,20 @@ export class SubsidyService {
             supportDetails: 1,
             keywords: 1,
             summary: 1,
+            responsibleInstitutionName: 1,
+            targetGroup: 1,
+            applicationMethod: 1,
+            applicationDeadline: 1,
             score: { $meta: "vectorSearchScore" },
           },
         },
         {
-          $limit: 30,
+          $limit: 90,
         },
       ];
       const results = await collection.aggregate<Subsidy>(pipeline).toArray();
-      const totalCount = await collection.countDocuments();
-      const totalPages = Math.ceil(totalCount / limit);
-
-      return {
-        results,
-        pagination: {
-          currentPage: 1,
-          totalPages,
-          totalCount,
-          hasNextPage: 1 < totalPages,
-          hasPreviousPage: 1 > 1,
-        },
-      };
+      const eligibleCheckedResult = await this.setIsEligible(userEmail, results);
+      return eligibleCheckedResult;
     } catch (error) {
       console.error("Error in vector search:", error);
       throw error;
@@ -496,11 +485,28 @@ export class SubsidyService {
     await Promise.all([this.mongoClient.close(), mongoose.disconnect()]);
   }
 
+  async setIsEligible(userEmail: string, subsidies: any) {
+    const eligibilityPromises = subsidies.map(async (m) => {
+      m.isEligible = await this.checkEligible(userEmail, m.serviceId);
+      console.log(m.isEligible);
+      return m;
+    });
+
+    const newSubsidies = await Promise.all(eligibilityPromises);
+
+    for (let i = 0; i < Math.min(6, newSubsidies.length); i++) {
+     console.log(`Subsidy ${i + 1} eligibility:`, newSubsidies[i].isEligible);
+    }
+
+    return newSubsidies;
+  }
+
   async checkEligible(userEmail: string, serviceId: number) {
     const user = await userSchema.findOne({ google_mail: userEmail });
     const subsidy = await subsidySchema.findOne({ serviceId: serviceId });
+    if (!subsidy) throw new NotFoundException();
     for (let eligibleCode of user?.jacode || []) {
-      if (subsidy.supportCondition.includes(eligibleCode)) {
+      if (subsidy?.supportCondition.includes(eligibleCode)) {
         return true;
       } else continue;
     }
@@ -509,8 +515,10 @@ export class SubsidyService {
 
   async getDetailedSubsidyData(serviceId: number, userEmail: string) {
     const subsidy = await subsidySchema.findOne({ serviceId: serviceId });
-    const isEligible = userEmail ? this.checkEligible(userEmail, serviceId) : false;
-    const result = subsidy
+    const isEligible = userEmail
+      ? this.checkEligible(userEmail, serviceId)
+      : false;
+    const result = {...subsidy}
       ? {
           ...subsidy,
           isEligible: isEligible,

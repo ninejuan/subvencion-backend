@@ -13,17 +13,26 @@ export class SubsidyController {
   }
 
   // 1. 개별 서비스 ID로 보조금 데이터 가져오기
-  @UseGuards(SubJwtAuthGuard)
   @Get("detail/:serviceId")
-  async getSubsidyByServiceId(@Req() req, @Res() res, @Param("serviceId") serviceId: number) {
-    if (!serviceId) {
-      throw res.redirect('/');
-    }
-    let result = this.subsidyService.getDetailedSubsidyData(serviceId, req.id);
-    if (!result) {
-      throw res.redirect('/404');
-    } else return result; 
+// @UseGuards(SubJwtAuthGuard)
+async getSubsidyByServiceId(
+  @Param("serviceId") serviceId: string, // Capture as string to parse it below
+  @Req() req,
+  @Res() res
+) {
+  const parsedServiceId = parseInt(serviceId, 10);
+  if (isNaN(parsedServiceId)) {
+    return res.status(400).json({ message: "Invalid service ID" });
   }
+  
+  try {
+    const result = await this.subsidyService.getDetailedSubsidyData(parsedServiceId, req.id);
+    return res.json(result);
+  } catch (error) {
+    console.error('Error fetching subsidy details:', error);
+    return res.status(500).json({ message: "Failed to fetch subsidy details" });
+  }
+}
 
   // 2. 전체 보조금 목록 가져오기 (페이지네이션)
   @Get("all")
@@ -44,7 +53,9 @@ export class SubsidyController {
 
   // 3. 벡터 + 키워드 검색 (하나의 엔드포인트로 통합)
   @Get("search")
+  @UseGuards(SubJwtAuthGuard)
   async searchSubsidies(
+    @Req() req,
     @Query("query") query: string
   ) {
     if (!query) {
@@ -54,10 +65,12 @@ export class SubsidyController {
     try {
       let result;
         result = await this.subsidyService.searchSubsidiesByVector(
-          query
+          query, 30, req.id
         );
+      // let nes = await this.subsidyService.setIsEligible(req.id, result);
       return result;
     } catch (error) {
+      console.error(error);
       return { message: "Error searching subsidies", error };
     }
   }
