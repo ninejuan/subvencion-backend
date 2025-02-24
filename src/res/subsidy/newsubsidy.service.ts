@@ -518,7 +518,7 @@ export class SubsidyService {
     const isEligible = userEmail
       ? this.checkEligible(userEmail, serviceId)
       : false;
-    const result = {...subsidy}
+    const result = subsidy
       ? {
           ...subsidy,
           isEligible: isEligible,
