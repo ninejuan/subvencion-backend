@@ -37,7 +37,7 @@ async function bootstrap() {
     })
   );
   const corsOptions: CorsOptions = {
-    origin: ["*","https://subvencion.juany.kr","http://localhost:5173"],
+    origin: ["*", "https://subvencion.juany.kr", "http://localhost:5173"],
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
     credentials: true,
   };
@@ -45,7 +45,7 @@ async function bootstrap() {
   app.enableCors(corsOptions);
   app.use(passport.initialize());
   app.use(passport.session());
-  await linkToDatabase();
+  // await linkToDatabase();
   if (env.MODE == "DEV") {
     try {
       setupSwagger(app);
